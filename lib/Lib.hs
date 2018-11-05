@@ -12,7 +12,7 @@ import Data.Monoid ((<>))
 import System.IO (stdin)
 
 
-data ShouldFix = FixIt | DONTFixIt deriving Show
+data ShouldFix = FixIt | DontFixIt deriving Show
 
 data Options = Options
     { ofile :: Maybe FilePath
@@ -35,8 +35,16 @@ main = do
     ops <- execParser $ info (helper <*> options)
                              (fullDesc)
     case ops of
-        Options (Just path) _ -> detectNPrint =<< readFile path
-        Options Nothing _     -> detectNPrint =<< getContents
+        Options (Just path) f -> do
+            case f of
+                DontFixIt ->
+                    detectNPrint =<< readFile path
+                FixIt -> do
+                    c <- readFile path
+                    seq (length c) (return ())
+                    writeFile path (intercalate "\n" (trimRightAll (lines c))++ "\n")
+
+        Options Nothing _ -> detectNPrint =<< getContents
 
     where
 
@@ -52,7 +60,7 @@ options = Options
         help "The filename from which to read (defaults to stdin)." <>
         value Nothing
     )
-    <*> flag DONTFixIt FixIt (
+    <*> flag DontFixIt FixIt (
         long "fix" <>
         short 'f' <>
         help "Whether or not to fix detected issues."
